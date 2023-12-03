@@ -1,6 +1,4 @@
-const { log } = require('node:console');
 const fs = require('node:fs');
-const { constrainedMemory } = require('node:process');
 
 const data = fs.readFileSync('input.txt', 'utf8');
 const dataArr = data.split('\r\n');
