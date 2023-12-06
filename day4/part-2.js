@@ -56,8 +56,6 @@ for (let i = 1; i <= count; i++) {
     for (let j = i + 1; j <= i + card.wins; j++) {
         if (scratchcards[j])
             scratchcards[j].copies += card.copies;
-        // for (let k = 0; k < card.copies; k++) {
-        // }
     }
     totalCards += card.copies;
 }
