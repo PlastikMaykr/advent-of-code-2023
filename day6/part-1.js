@@ -32,8 +32,6 @@ for (let i = 0; i < races.length; i++) {
     }
     wins.push(winCounter);
 }
-// console.log({ wins });
 
 const margin = wins.reduce((acc, cur) => acc * cur);
-// console.log(margin);
 console.log({ wins, margin });
