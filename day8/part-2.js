@@ -25,10 +25,12 @@ for (let line of maps) {
 let pins = Object.keys(nodes).filter(n => n.endsWith('A'));
 let steps = [...Array(pins.length)].fill(0);
 console.log({ pins, steps });
-pins.every(n => n.endsWith('Z'));
+
+// pins.every(n => n.endsWith('Z'));
 // pins.endWithZ = function() {
 //     return this.every(n => n.endsWith('Z'));
 // }
+
 let counter = 0;
 while (!pins.every(n => n.endsWith('Z'))) {
     // while (steps < 10) {
@@ -46,7 +48,6 @@ while (!pins.every(n => n.endsWith('Z'))) {
     console.log(pins);
 
     counter++;
-    // steps++;
 }
 console.log(steps);
 
