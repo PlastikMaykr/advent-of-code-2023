@@ -1,5 +1,3 @@
-// const { match } = require('node:assert');
-// const { count } = require('node:console');
 const fs = require('node:fs');
 
 const data = fs.readFileSync('output2.txt', 'utf8');
@@ -18,16 +16,22 @@ for (let [conditions, groups] of dataArr) {
 console.log(springRows[0]);
 
 
-const notSolved = new RegExp('\\?');
-function isSolved(conditions) {
-    return !notSolved.test(conditions);
-}
+const counts = fs.readFileSync('output3.txt', 'utf8');
+const lastCount = counts.split('\r\n')//.length;
+console.log(lastCount, lastCount.length);
 
-for (let row of springRows) {
+
+// for (let row of springRows) {
+for (let i = lastCount.length - 1; i < springRows.length; i++) {
+    // console.log(i, springRows[i]);
+    const row = springRows[i];
+
     let { conditions, groups } = row;
-    if (isSolved(conditions)) {
+    if (!conditions.includes('?')) {
         row.solutions = conditions;
         row.count = 1;
+
+        fs.appendFileSync('output3.txt', '1\r\n');
         continue;
     }
 
@@ -41,37 +45,39 @@ for (let row of springRows) {
         const current = unsolved[i];
         const q = current.indexOf('?');
 
-        const { done, wip } = findSolutions(current, q, reg);
-        console.log({ done, wip });
-        count += done.length;
-        solutions.push(...done);
-        unsolved.push(...wip);
+        const currDot = replaceAt(current, q, '.');
+        if (reg.test(currDot)) {
+            if (currDot.includes('?')) {
+                unsolved.push(currDot);
+            } else {
+                solutions.push(currDot);
+                count++;
+            }
+            console.log(currDot);
+        }
+        const currHash = replaceAt(current, q, '#');
+        if (reg.test(currHash)) {
+            if (currHash.includes('?')) {
+                unsolved.push(currHash);
+            } else {
+                solutions.push(currHash);
+                count++;
+            }
+            console.log(currHash);
+        }
     }
     row.unsolved = unsolved;
     row.solutions = solutions;
     row.count = count;
+
+    fs.appendFileSync('output3.txt', count + '\r\n');
 }
 console.log(springRows);
 
-const arrangements = springRows.map(({count}) => count);
+const arrangements = springRows.map(({ count }) => count);
 const arrangementTotal = arrangements.reduce((sum, num) => sum + num);
-console.log({arrangements, arrangementTotal});
+console.log({ arrangements, arrangementTotal });
 
-
-function findSolutions(conditions, q, reg) {
-    let done = [], wip = [];
-    const mutated = [
-        replaceAt(conditions, q, '.'),
-        replaceAt(conditions, q, '#')
-    ];
-    mutated.forEach(cond => {
-        const matcha = cond.match(reg);
-        if (!matcha || matcha[0] !== cond) return;
-        isSolved(cond) ? done.push(cond) : wip.push(cond);
-    });
-
-    return { done, wip }
-}
 
 function buildReg(arr) {
     var ends = '[?\\.]*'
@@ -83,7 +89,7 @@ function buildReg(arr) {
         expr += mid + num + dle;
     })
     // expr += ends + '$';
-    expr = replaceAt(expr, expr.length - 1, '*')
+    expr = replaceAt(expr, expr.length - 1, '*$')
 
     var reg = new RegExp(expr)
     console.log(reg.toString());
