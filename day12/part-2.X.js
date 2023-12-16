@@ -17,7 +17,7 @@ const fs = require('node:fs');
 
 const timeStart = performance.now();
 
-const rowRaw = '?????#?.?###??????#?.?###??????#?.?###??????#?.?###??????#?.#### 1,1,2,4,1,1,2,4,1,1,2,4,1,1,2,4,1,1,2,4'
+const rowRaw = '.????.?#?#?#?##?? 1,8'
     .split(' ');
 const row = {
     conditions: rowRaw[0],
@@ -31,6 +31,11 @@ console.log({ rowRaw, row });
 
 const reg = buildReg(groups);
 
+// TODO: try adding to Set while iterating over it
+// TODO: consolidate collections and unsolved into single structure
+
+// const condSpit = splitAt(conditions);
+let collection = { '-1': new Set(conditions) };
 let unsolved = { '-1': [['', conditions]] };
 let solved// = [];
 
@@ -39,6 +44,8 @@ for (let g = 0; g < groups.length; g++) { // g => group
     // if (g > 1) continue;
     const group = groups[g];
     const isLast = g === groups.length - 1;
+
+    collection[g] = new Set();
     unsolved[g] = [];
     // unsolved[g].group = group;
 
@@ -46,9 +53,8 @@ for (let g = 0; g < groups.length; g++) { // g => group
     if (!isLast) filling += '.'
     console.log('');
     console.log(`The group ${g} # count is ${group}: ${filling}`);
-    // var one = /(?<two>[?#]{2,})[\.]+/;
-    // var one = /([?#]{2,}?)[?\.]+?/;
-    // var regGroup = new RegExp(`([?#]{${group},}?)[?\.]+?`);
+
+
     var regGroup = buildGroupExpr(group, isLast)
     for (let [past, cond] of unsolved[g - 1]) {
 
@@ -57,60 +63,68 @@ for (let g = 0; g < groups.length; g++) { // g => group
         const q = cond.indexOf('?');
 
         const condDota = replaceAt(cond, q, '.');
-        const testDota = reg.test(past + condDota);
-        if (testDota) {
+        const wholeDota = past + condDota;
+        const testDota = reg.test(wholeDota);
+        if (testDota /* && !collection[g - 1].has(wholeDota) */) {
+            // collection[g - 1].add(wholeDota);
             // console.group('Dota')
             // console.log(unsolved[g - 1]);
             // console.log([past,cond]);
             console.log('(', group, ')', g, '/', groups.length - 1, past, condDota);
+            console.log(collection[g - 1].has(wholeDota));
             // console.groupEnd('Dota')
-            if (condDota.indexOf('?') === 1) {
+            if (condDota.indexOf('?') === 1 && !collection[g - 1].has(wholeDota)) {
+                collection[g - 1].add(wholeDota);
+
                 const moveDot = splitMove([past, condDota], 1);
                 unsolved[g - 1].push(moveDot);
             }
+
             // const [thisGroup, nextGroups] = matchGroup(condDota,regGroup);
-            unsolved[g].push(matchGroup(past, condDota, regGroup, filling));
+            const newDota = matchGroup(past, condDota, regGroup, filling);
+            const wholeNewDota = newDota.join('');
+            // if (!collection[g].has(wholeNewDota)) {
+                collection[g].add(wholeNewDota);
+
+            unsolved[g].push(newDota);
+            // }
         }
 
         const condHash = replaceAt(cond, q, '#');
-        const testHash = reg.test(past + condHash);
-        if (testHash) {
+        const wholeHash = past + condHash;
+        const testHash = reg.test(wholeHash);
+        if (testHash && !collection[g - 1].has(wholeHash)) {
+            collection[g - 1].add(wholeHash);
+
             // const [thisGroup, nextGroups] = matchGroup(condHash,regGroup);
-            unsolved[g].push(matchGroup(past, condHash, regGroup, filling));
+            const newHash = matchGroup(past, condHash, regGroup, filling);
+            const wholeNewHash = newHash.join('');
+            // if (!collection[g].has(wholeNewHash)) {
+                collection[g].add(wholeNewHash);
+
+            unsolved[g].push(newHash);
+            // }
         }
-
-        // const matchDota = regGroup.exec(condDota);
-        // console.log({ past, cond, condDota, regGroup });
-        // if (matchDota) {
-        //     console.log({ matchDota });
-        //     // console.log({ indices: matchDota.indices });
-        //     let [solDota, futureDota] = splitAt(condDota, matchDota.indices[0][1]);
-        //     const replaDota = solDota.replace(regGroup, filling)
-        //     const thisDota = past + replaDota;
-        //     console.log({ solDota, replaDota });
-        //     console.log({ thisDota, futureDota });
-        //     unsolved[g].push([thisDota, futureDota]);
-        // }
-
-        // const condHash = replaceAt(cond, q, '#');
-        // const testHash = reg.test(condHash);
-        // const matchHash = regGroup.exec(condHash);
-        // console.log({ past, cond, condHash, regGroup });
-        // if (matchHash) {
-        //     console.log({ matchHash });
-        //     // console.log({ indices: matchHash.indices });
-        //     let [solHash, futureHash] = splitAt(condHash, matchHash.indices[0][1]);
-        //     const replaHash = solHash.replace(regGroup, filling)
-        //     const thisHash = past + replaHash;
-        //     console.log({ solHash, replaHash });
-        //     console.log({ thisHash, futureHash });
-        //     unsolved[g].push([thisHash, futureHash]);
-        // }
     }
     if (isLast) {
         solved = new Set(unsolved[g].map(d => d[0] + '.'.repeat(d[1].length)));
     }
 }
+
+console.group('Raport: arrays vs maps');
+// console.log('')
+for (let i = -1; i < groups.length; i++) {
+    console.log('i: ', i);
+    console.log('arr: ', unsolved[i].length);
+    console.log('map: ', collection[i].size);
+    if (i == 1) {
+        console.log(unsolved[i]);
+        console.log(collection[i]);
+    }
+}
+// console.log(Object.keys(unsolved))
+console.groupEnd();
+
 
 const solutions = [...solved.keys()].sort();
 
@@ -161,64 +175,6 @@ const output = {
     time: timeFormatted
 };
 fs.writeFileSync('outputX.json', JSON.stringify(output, null, 2));
-
-
-
-/* 
-// for (let row of springRows) {
-for (let i = lastCount.length - 1; i < springRows.length; i++) {
-    // console.log(i, springRows[i]);
-    const row = springRows[i];
-
-    let { conditions, groups } = row;
-    if (!conditions.includes('?')) {
-        row.solutions = conditions;
-        row.count = 1;
-
-        fs.appendFileSync('output3.txt', '1\r\n');
-        continue;
-    }
-
-    let unsolved = [conditions];
-    let solutions = [];
-    let count = 0;
-    console.log(conditions.length);
-    const reg = buildReg(groups);
-
-    for (let i = 0; i < unsolved.length; i++) {
-        const current = unsolved[i];
-        const q = current.indexOf('?');
-
-        const currDot = replaceAt(current, q, '.');
-        if (reg.test(currDot)) {
-            if (currDot.includes('?')) {
-                unsolved.push(currDot);
-            } else {
-                solutions.push(currDot);
-                count++;
-            }
-            console.log(currDot);
-        }
-        const currHash = replaceAt(current, q, '#');
-        if (reg.test(currHash)) {
-            if (currHash.includes('?')) {
-                unsolved.push(currHash);
-            } else {
-                solutions.push(currHash);
-                count++;
-            }
-            console.log(currHash);
-        }
-    }
-    row.unsolved = unsolved;
-    row.solutions = solutions;
-    row.count = count;
-
-    fs.appendFileSync('output3.txt', count + '\r\n');
-}
-console.log(springRows);
- */
-
 
 
 function buildReg(arr) {
