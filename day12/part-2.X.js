@@ -1,4 +1,3 @@
-const { match } = require('node:assert');
 const fs = require('node:fs');
 
 // const data = fs.readFileSync('output2.txt', 'utf8');
@@ -16,7 +15,9 @@ const fs = require('node:fs');
 // }
 // console.log(springRows[0]);
 
-const rowRaw = '.??..??...?##. 1,1,3'
+const timeStart = performance.now();
+
+const rowRaw = '?????#?.?###??????#?.?###??????#?.?###??????#?.?###??????#?.#### 1,1,2,4,1,1,2,4,1,1,2,4,1,1,2,4,1,1,2,4'
     .split(' ');
 const row = {
     conditions: rowRaw[0],
@@ -31,7 +32,7 @@ console.log({ rowRaw, row });
 const reg = buildReg(groups);
 
 let unsolved = { '-1': [['', conditions]] };
-let solutions = [];
+let solved// = [];
 
 
 for (let g = 0; g < groups.length; g++) { // g => group
@@ -41,7 +42,7 @@ for (let g = 0; g < groups.length; g++) { // g => group
     unsolved[g] = [];
     // unsolved[g].group = group;
 
-    let filling = '#'.repeat(group)
+    let filling = '#'.repeat(group);
     if (!isLast) filling += '.'
     console.log('');
     console.log(`The group ${g} # count is ${group}: ${filling}`);
@@ -50,55 +51,103 @@ for (let g = 0; g < groups.length; g++) { // g => group
     // var regGroup = new RegExp(`([?#]{${group},}?)[?\.]+?`);
     var regGroup = buildGroupExpr(group, isLast)
     for (let [past, cond] of unsolved[g - 1]) {
+
+        //TODO: while (regGroup.test(replaceAt(cond, q, '.')))
+
         const q = cond.indexOf('?');
 
         const condDota = replaceAt(cond, q, '.');
-        // const testDot = reg.test(condDota);
-        const matchDota = regGroup.exec(condDota);
-        console.log({ past, cond, condDota, regGroup });
-        if (matchDota) {
-            console.log({ matchDota });
-            // console.log({ indices: matchDota.indices });
-            let [solDota, futureDota] = splitAt(condDota, matchDota.indices[0][1]);
-            const replaDota = solDota.replace(regGroup, filling)
-            const thisDota = past + replaDota;
-            console.log({ solDota, replaDota });
-            console.log({ thisDota, futureDota });
-            unsolved[g].push([thisDota, futureDota]);
+        const testDota = reg.test(past + condDota);
+        if (testDota) {
+            // console.group('Dota')
+            // console.log(unsolved[g - 1]);
+            // console.log([past,cond]);
+            console.log('(', group, ')', g, '/', groups.length - 1, past, condDota);
+            // console.groupEnd('Dota')
+            if (condDota.indexOf('?') === 1) {
+                const moveDot = splitMove([past, condDota], 1);
+                unsolved[g - 1].push(moveDot);
+            }
+            // const [thisGroup, nextGroups] = matchGroup(condDota,regGroup);
+            unsolved[g].push(matchGroup(past, condDota, regGroup, filling));
         }
 
         const condHash = replaceAt(cond, q, '#');
-        // const testHash = reg.test(condHash);
-        const matchHash = regGroup.exec(condHash);
-        console.log({ past, cond, condHash, regGroup });
-        if (matchHash) {
-            console.log({ matchHash });
-            // console.log({ indices: matchHash.indices });
-            let [solHash, futureHash] = splitAt(condHash, matchHash.indices[0][1]);
-            const replaHash = solHash.replace(regGroup, filling)
-            const thisHash = past + replaHash;
-            console.log({ solHash, replaHash });
-            console.log({ thisHash, futureHash });
-            unsolved[g].push([thisHash, futureHash]);
+        const testHash = reg.test(past + condHash);
+        if (testHash) {
+            // const [thisGroup, nextGroups] = matchGroup(condHash,regGroup);
+            unsolved[g].push(matchGroup(past, condHash, regGroup, filling));
         }
+
+        // const matchDota = regGroup.exec(condDota);
+        // console.log({ past, cond, condDota, regGroup });
+        // if (matchDota) {
+        //     console.log({ matchDota });
+        //     // console.log({ indices: matchDota.indices });
+        //     let [solDota, futureDota] = splitAt(condDota, matchDota.indices[0][1]);
+        //     const replaDota = solDota.replace(regGroup, filling)
+        //     const thisDota = past + replaDota;
+        //     console.log({ solDota, replaDota });
+        //     console.log({ thisDota, futureDota });
+        //     unsolved[g].push([thisDota, futureDota]);
+        // }
+
+        // const condHash = replaceAt(cond, q, '#');
+        // const testHash = reg.test(condHash);
+        // const matchHash = regGroup.exec(condHash);
+        // console.log({ past, cond, condHash, regGroup });
+        // if (matchHash) {
+        //     console.log({ matchHash });
+        //     // console.log({ indices: matchHash.indices });
+        //     let [solHash, futureHash] = splitAt(condHash, matchHash.indices[0][1]);
+        //     const replaHash = solHash.replace(regGroup, filling)
+        //     const thisHash = past + replaHash;
+        //     console.log({ solHash, replaHash });
+        //     console.log({ thisHash, futureHash });
+        //     unsolved[g].push([thisHash, futureHash]);
+        // }
     }
     if (isLast) {
-        // solutions.push(unsolved[g].flat().filter(d => d !== ''))
-        solutions = unsolved[g].map(d => d[0]);
+        solved = new Set(unsolved[g].map(d => d[0] + '.'.repeat(d[1].length)));
     }
 }
 
-function isSolved(springs) {
-    return !springs.includes('?');
-}
+const solutions = [...solved.keys()].sort();
 
-function replacer(group, match, p, offset, str, groups) {
-    // const replacer = (group, match, p, offset, str, groups) => {
-    // console.log(group)
-    // console.log({ group, match, p, offset, str, groups });
-    console.log({ str, match, offset });
-    const hashGroup = '#'.repeat(group) + '.'
-    return hashGroup;
+const timeEnd = performance.now();
+const time = Math.round(timeEnd - timeStart);
+const moreThanSecond = time > 1000;
+const moreThanMinute = time > 60000;
+const timeMod = (time / 1000) % 60;
+const timeFormatted = moreThanMinute ? `${((time / 1000) - timeMod) / 60}m ${Math.round(timeMod)}s` :
+    moreThanSecond ? `${Math.round(time / 10) / 100}s` : `${time}ms`;
+
+function matchGroup(past, condDota, regGroup, hashFill) {
+    const matcha = regGroup.exec(condDota);
+    if (!matcha) return null;
+    // console.log(matcha);
+
+    const dotsStr = matcha.groups.dots;
+    const dotsIdx = matcha.indices.groups.dots;
+    const hashStr = matcha.groups.hash;
+    const hashIdx = matcha.indices.groups.hash;
+
+    const dotsFill = '.'.repeat(dotsStr.length);
+
+    // console.log('\nMatch group report:');
+    // console.log({
+    //     examined: condDota,
+    //     reg: regGroup.toString(),
+    //     match: matcha[0],
+    //     dotsMatch: [dotsStr, dotsIdx],
+    //     hashMatch: [hashStr, hashIdx],
+    //     fill: [dotsFill, hashFill],
+    // });
+
+    const [, future] = splitAt(condDota, hashIdx[1]);
+    const present = past + dotsFill + hashFill;
+
+    return [present, future]
 }
 
 
@@ -108,14 +157,12 @@ const output = {
     reg: reg.toString(),
     unsolved,
     solutions,
-    count: solutions.length
+    count: solved.size,
+    time: timeFormatted
 };
 fs.writeFileSync('outputX.json', JSON.stringify(output, null, 2));
 
 
-// const counts = fs.readFileSync('output3.txt', 'utf8');
-// const lastCount = counts.split('\r\n')//.length;
-// console.log(lastCount, lastCount.length);
 
 /* 
 // for (let row of springRows) {
@@ -172,9 +219,6 @@ for (let i = lastCount.length - 1; i < springRows.length; i++) {
 console.log(springRows);
  */
 
-// const arrangements = springRows.map(({ count }) => count);
-// const arrangementTotal = arrangements.reduce((sum, num) => sum + num);
-// console.log({ arrangements, arrangementTotal });
 
 
 function buildReg(arr) {
@@ -197,8 +241,12 @@ function buildReg(arr) {
 function buildGroupExpr(group, last = false) {
     // /([?#]{2,}?)[?\.]+?/;
     // '([?#]{2,}?)[?\.]+?'
-    let expr = `([?#]{${group},}?)`;
-    expr += last ? '[?\\.]*$' : '[?\\.]+?';
+    // let expr = `([?#]{${group},}?)`;
+    // let expr = `^(?<dots>[\\?\\.]*?)(?<hash>[\\?#]{${group},}?)`;
+    // expr += last ? '[?\\.]*$' : '[?\\.]+?';
+    // let expr = `^(?<dots>[\\?\\.]*?)(?<hash>[\\?#]{${group}})`;
+    let expr = `^(?<dots>[\\?\\.]*?)(?<hash>[\\?#]{${group}}`;
+    expr += last ? ')' : '[?\\.])';
     console.log(expr);
     return new RegExp(expr, 'd');
 }
@@ -208,6 +256,13 @@ function splitAt(str, i = 0) { // ('abcdef', 3) => [ 'abc', 'def' ]
         str.slice(0, i),
         str.slice(i)
     ]
+}
+
+function splitMove(split, v = 0) { // (['abc', 'def'], 2) => [ 'abcde', 'f' ]
+    if (!v) return split;
+    let [str1, str2] = split;
+    const i = str1.length + v;
+    return splitAt(str1 + str2, i);
 }
 
 function reverse(str) {
