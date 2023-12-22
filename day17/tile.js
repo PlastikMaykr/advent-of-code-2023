@@ -122,24 +122,30 @@ class Path {
      * 
      * @param {Grid} grid 
      */
-    constructor(grid) {
+    constructor(grid, start, end) {
         this.grid = grid;
-        this.start = grid.getTile(0, 0);
-        this.end = grid.getTile(grid.cols - 1, grid.rows - 1);
+        this.start = start || grid.getTile(0, 0);
+        this.end = end || grid.getTile(grid.cols - 1, grid.rows - 1);
 
         this.done = false;
         this.init();
     }
     init() {
-        this.start.updateVal('g', 0);
-        this.start.updateVal('h', 0);
-        this.start.updateVal('f', 0);
-
         this.current// = this.start;
         /** @type {Tile[]} */
-        this.openSet = [this.start]//new Map([this.start, {}]);
+        this.openSet = [];
         /** @type {Tile[]} */
-        this.closedSet = []//new Map();
+        this.closedSet = [];
+
+        this.openTile(this.start);
+        // const [g, h, f] = this.evalTile(this.start);
+        const h = Tile.distance(this.start, this.end);
+        this.start.updateVal('g', 0);
+        this.start.updateVal('h', h);
+        this.start.updateVal('f', h);
+
+        this.considerNext(this.start);
+        this.closeTile(this.start);
     }
     openTile(tile) {
         const openIdx = this.openSet.indexOf(tile);
@@ -173,27 +179,10 @@ class Path {
 
             this.current = this.getCheapest();
             // console.log(this.current);
+
             for (let current of this.current) {
-                // evaluate cheapest tile
+                this.considerNext(current);
                 this.closeTile(current);
-                for (let tile of current.adj) {
-                    // TODO: check from direction past 2 tiles and skip if its continuous
-                    if (this.lineageTooStr8(tile, current)) continue;
-                    // console.debug(this.lineageTooStr8(tile));
-
-                    this.openTile(tile);
-                    // calc g, h and f
-                    const g = Tile.distance(this.start, tile);
-                    const h = Tile.distance(this.end, tile);
-                    const f = g + h + tile.l;
-
-                    if (tile.f === null || f < tile.f) {
-                        tile.updateVal('g', g);
-                        tile.updateVal('h', h);
-                        tile.updateVal('f', f);
-                        tile.from = current;
-                    }
-                }
             }
         } else {
             // no solution / end is reached
@@ -202,18 +191,70 @@ class Path {
         // console.log({ opened: this.openSet, closed: this.closedSet });
         // console.dir(this.openSet);
     }
+    /** @param {Tile} current */
+    considerNext(current) {
+        for (let tile of current.adj) {
+            // check from direction past 2 tiles and skip if its continuous
+            if (current.from === tile) continue;
+            const str8 = this.lineageTooStr8(tile, current);
+            if (str8) continue;
+            // console.debug(this.lineageTooStr8(tile));
+
+            this.openTile(tile);
+            // calc g, h and f
+            const prev = tile.from;
+            tile.from = current;
+            const [g, h, f] = this.evalTile(tile);
+            if (f === tile.f) {
+                // TODO: branch path each time this happens
+                console.log('Equal F');
+            }
+            if (tile.f === null || f <= tile.f) {
+                tile.updateVal('g', g);
+                tile.updateVal('h', h);
+                tile.updateVal('f', f);
+            } else {
+                tile.from = prev;
+            }
+        }
+    }
+    /** @param {Tile} tile */
+    evalTile(tile) {
+        const g =
+            tile.from.g + tile.l;
+        // this.trace(tile);
+        //Tile.distance(this.start, tile);
+        const h = Tile.distance(this.end, tile);
+        // const f = g + h + tile.l;
+        const f = g + h + tile.l;
+        return [g, h, f];
+    }
     /** @param {Tile} tile */
     lineageTooStr8(tile, pa) {
-        if (!pa?.from?.from) return false;
+        if (!pa?.from?.from?.from) return false;
         // console.log('G-gf says HI', tile?.from?.from?.from);
 
         // const pa = tile.from; // father
         const papa = pa.from; // grandfather
         const papapa = papa.from; // great-grandfather
+        const papapapa = papapa.from; // great-great-grandfather
 
-        return ((tile.x === pa.x && pa.x === papa.x && papa.x === papapa.x) ||
-               (tile.y === pa.y && pa.y === papa.y && papa.y === papapa.y));
+        return (Math.abs(papapapa.x - tile.x) === 4 ||
+            Math.abs(papapapa.y - tile.y) === 4);
+
+        // return ((tile.x === pa.x && pa.x === papa.x && papa.x === papapa.x) ||
+        //     (tile.y === pa.y && pa.y === papa.y && papa.y === papapa.y));
     }
+    // trace(tile) {
+    //     let last = tile;
+    //     let heatLoss = tile.l;
+    //     while (last.from) {
+    //         last = last.from;
+    //         heatLoss += last.l;
+    //     }
+    //     console.log({ heatLoss });
+    //     return heatLoss;
+    // }
     retrace(last = this.end.from ? this.end : this.getCheapest()[0]) {
         // let last;
         const trace = [last];
@@ -223,9 +264,15 @@ class Path {
         }
         console.dir(trace);
         trace.forEach(({ element }) => element.classList.add('debug'));
+        if (trace[0] !== this.end) {
+            setTimeout(() => {
+                trace.forEach(({ element }) => element.classList.remove('debug'))
+            }, 1000)
+        }
 
         const heatLoss = trace.reduce((acc, cur) => acc + cur.l, 0);
         console.log({ heatLoss });
+        return heatLoss;
     }
     run() {
         if (this.done) return;
