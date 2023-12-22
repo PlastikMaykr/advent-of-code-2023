@@ -162,12 +162,11 @@ class Path {
         this.closedSet.push(tile);
         tile.close();
     }
-    getCheapest() {
-        // const lowestF = this.openSet.reduce((acc, cur) => cur.f < acc.f ? cur : acc);
+    getCheapest() { // cheapest tile
         const lowestF = this.openSet.reduce((acc, cur) => Math.min(cur.f, acc), Infinity);
         const cheapest = this.openSet.filter(tile => tile.f === lowestF);
         // console.log({ lowestF, cheapest });
-        return cheapest; // cheapest tile
+        return cheapest;
     }
     update() {
         if (this.openSet.length) {
@@ -232,18 +231,13 @@ class Path {
     /** @param {Tile} tile */
     lineageTooStr8(tile, pa) {
         if (!pa?.from?.from?.from) return false;
-        // console.log('G-gf says HI', tile?.from?.from?.from);
 
-        // const pa = tile.from; // father
         const papa = pa.from; // grandfather
         const papapa = papa.from; // great-grandfather
         const papapapa = papapa.from; // great-great-grandfather
 
         return (Math.abs(papapapa.x - tile.x) === 4 ||
             Math.abs(papapapa.y - tile.y) === 4);
-
-        // return ((tile.x === pa.x && pa.x === papa.x && papa.x === papapa.x) ||
-        //     (tile.y === pa.y && pa.y === papa.y && papa.y === papapa.y));
     }
     // trace(tile) {
     //     let last = tile;
