@@ -4,12 +4,43 @@ const data = fs.readFileSync('input0.txt', 'utf8');
 const dataArr = data
     .split('\r\n')
     .map(line => line.split(''));
-console.log(dataArr);
+// console.log(dataArr);
 
 const rows = dataArr.length;
 const cols = dataArr[0].length;
 console.log({ rows, cols });
 
+/**
+ * @typedef {number[]} Coords
+ * @description Coordinates of garden plot.
+*/
+
+/**
+ * @typedef {Set<Coords>} Plots
+ * @description Coordinates of a farm.
+ */
+
+/**
+ * @typedef {number[]} FarmCoords
+ * @description Coordinates of a farm.
+ */
+
+/**
+ * @typedef {Set<FarmCoords>} Farms
+ * @description Coordinates of a farm.
+ */
+
+/**
+ * @typedef {Map<Coords, Farms>} Garden
+ * @description Coordinates of a farm.
+ */
+
+/**
+ * @typedef {number[]} Directive
+ * @description Relative direction.
+*/
+
+/** @type {Object.<string,Directive>} */
 const direction = { // [y, x]
     up: [1, 0],
     right: [0, 1],
@@ -17,31 +48,35 @@ const direction = { // [y, x]
     left: [0, -1]
 };
 
+// build coordinates dictionary and rocks map
+let startCoords;
+/** @type {Plots} */
 const rocks = new Set();
-const prev = new Set();
-const next = new Set();
-const moves = new Map();
+/** @type {Object.<string,Coords>} */
 const coordinates = {};
 // const gardens = Array(rows);
 for (let y = 0; y < rows; y++) {
     // gardens[y] = Array(cols);
     for (let x = 0; x < cols; x++) {
+        /** @type {Coords} */
         const coords = [y, x];
         // coordinates[`${y} ${x}`] = coords;
         coordinates[encode(y, x)] = coords;
- // TODO: ignore rocks in moves
-        moves.set(coords, []);
+        // moves.set(coords, []);
         // gardens[y][x] = new Map([[`${y} ${x}`, [y, x]]]);
 
         if (dataArr[y][x] === '#') {
             rocks.add(coords);
         } else if (dataArr[y][x] === 'S') {
-            prev.add(coords);
+            // prev.add(coords);
+            startCoords = coords;
         }
     }
 }
+// console.log(coordinates);
 
 // outside gardens
+/** @type {Map<Coords,Directive>} */
 const bounds = new Map();
 for (let y = 0; y < rows; y++) {
     const left = [y, -1];
@@ -63,70 +98,57 @@ for (let x = 0; x < cols; x++) {
     bounds.set(up, direction['up']);
 
 }
-// console.log(gardens);
-console.log(coordinates);
-console.log(bounds);
-// console.log({ prev, rocks });
+// console.log(bounds);
 
+/** @type {Garden} */
+let prev = new Map();
+/** @type {Garden} */
+let next = new Map();
+/** @type {Map<Coords, Coords[]>} */
+const moves = new Map();
 for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-        const adjacent = moves.get(keycode(y, x));
+        const coords = keycode(y, x);
+        if (rocks.has(coords)) continue;
 
+        prev.set(coords, new Set());
+        next.set(coords, new Set());
+
+        /** @type {Coords[]} */
+        const adjacent = [];
+        moves.set(coords, adjacent);
         for (const dir in direction) {
             const [yOff, xOff] = direction[dir];
-            // const offCoords = `${y + yOff} ${x + xOff}`;
             const offCoords = keycode(y + yOff, x + xOff);
             // console.log({ offCoords });
-            /* if (bounds.has(offCoords)) {
-                const [yBound, xBound] = bounds.get(offCoords);
-                const loopCoords = keycode(
-                    y + yOff - (rows * yBound),
-                    x + xOff - (cols * xBound)
-                );
-                // console.log(offCoords, ' looped to ', loopCoords);
-                adjacent.push(loopCoords);
-            } else */
             if (!rocks.has(offCoords)) {
-                // console.log(offCoords, ' is a rock');
-                // next.add(offCoords);
+
                 adjacent.push(offCoords);
             }
         }
     }
 }
-console.log(moves);
+// console.log(moves);
 
-// TODO: gardens = Map(coord, Set(visited farms coords))
-// TODO: prev & next hold gardens Maps
-// TODO: farms = Set(farms coords)
-// TODO: farms coords getter / generator function
-// TODO: stepping() adds farms coords to gardens (prev & next)
-// TODO: gardens.forEach.size (visited Set) => total visited garden plots
-// TODO: in other words: keep track of visited garden plots in farms
-
-// const plots = [];
-// for (const dir in direction) {
-//     const [yOff, xOff] = direction[dir];
-//     // const [y, x] = step.split(' ').map(d => parseInt(d));
-//     const offCoords = `${y + yOff} ${x + xOff}`;
-//     // console.log({ offCoords });
-//     if (!rocks.has(offCoords)) {
-//         // console.log(offCoords, ' is a rock');
-//         next.add(offCoords);
-//     }
-// }
+// farms
+const farms = {}
+prev.get(startCoords).add(farmCode(0, 0));
 
 
-/* 
-for (const rock of rocks) {
-    paint(rock, colors.grey, rocksImg);
-}
+print(prev);
+// stepping();
+const times = 1000;
+running(times);
+
+// visualize();
+// Object.values(farms).forEach(val => console.log(val));
+console.log(`In ${times} steps reached ${visited()} plots`);
 
 
-let fps = 10;
-const stepCount = 64;
-let steps = 0;
- */
+// TODO: figure out the flickering between steps when entire farm is visited
+// TODO: add completed farms to a Set and just check the flickering phase
+// TODO: when summarizing visited plots
+// TODO: only simulate stepping on uncompleted farms
 
 
 /**
@@ -143,68 +165,115 @@ function encode(y, x) {
  * @param {String} coords 
  * @returns {Array}
  */
-function decode(coords) {
-    return coordinates[coords];
-}
+// function decode(coords) {
+//     return coordinates[coords];
+// }
+
 /**
- * 
  * @param {Number} y 
  * @param {Number} x 
- * @returns {Array}
+ * @returns {Coords}
  */
 function keycode(y, x) {
     return coordinates[encode(y, x)];
 }
 
-function paint(coords, color, imgData = image) {
-    // console.log({coords});
-    const [y, x] = coords.split(' ').map(d => parseInt(d));
-    const i = (y * cols + x) * 4;
-    // console.log({ y, x, i });
-    const [r, g, b] = color.slice(4, -1).split(', ');
-    imgData.data[i] = r;
-    imgData.data[i + 1] = g;
-    imgData.data[i + 2] = b;
+/**
+ * Farms coordinates getter / generator
+ * @param {Number} y 
+ * @param {Number} x 
+ * @returns {FarmCoords}
+ */
+function farmCode(y, x) {
+    const code = encode(y, x);
+    let coords = farms[code];
+    if (!coords) {
+        coords = [y, x];
+        farms[code] = coords;
+    }
+    return coords;
+}
+
+function reset() {
+    [prev, next] = [next, prev];
+    for (const [, farmCoords] of next) {
+        // console.log({ farmCoords });
+        farmCoords.clear();
+    }
 }
 
 function stepping() {
-    resetImg();
+    for (const [plot, farmes] of prev) {
+        if (!farmes.size) continue;
+        for (const farm of farmes) {
 
-    // next steps
-    for (const step of prev) {
-        for (const dir in direction) {
-            const [y, x] = step.split(' ').map(d => parseInt(d));
-            const [yOff, xOff] = direction[dir];
-            const coords = `${y + yOff} ${x + xOff}`;
-            // console.log({ coords });
-            if (!rocks.has(coords)) {
-                // console.log(coords, ' is a rock');
-                next.add(coords);
+            const adjacent = moves.get(plot);
+            // console.log(adjacent);
+            for (let step of adjacent) {
+                // console.log(step);
+                const nextSteps = next.get(step);
+                if (bounds.has(step)) {
+                    const [y, x] = step;
+                    const [yBound, xBound] = bounds.get(step);
+                    const loopStep = keycode(
+                        y - (rows * yBound),
+                        x - (cols * xBound)
+                    );
+                    const [yFarm, xFarm] = farm;
+                    const farmidlo = farmCode(
+                        yFarm + yBound,
+                        xFarm + xBound
+                    );
+                    next.get(loopStep).add(farmidlo);
+                } else {
+                    nextSteps.add(farm);
+                }
             }
         }
     }
-    prev.clear();
-
-    // paint next steps
-    for (const step of next) {
-        paint(step, colors.white);
-        prev.add(step);
-    }
-    next.clear();
-
-    renderScaled();
-    steps++;
-    console.log({ steps, gardens: prev.size });
+    reset();
+    // print(prev);
 }
 
-function animate() {
-    if (steps === stepCount) return;
+function running(steps) {
+    if (steps < 1) return;
+    
+    if (!(steps % 100)) console.log(`In ${times - steps} steps reached ${visited()} plots`);
+    
     stepping();
-    requestAnimationFrame(animate);
+    running(steps - 1);
 }
 
-function walk() {
-    if (steps === stepCount) return;
-    stepping();
-    setTimeout(walk, 1000 / fps);
+/** @param {Garden} gardens */
+function print(gardens) {
+    console.log('');
+    gardens.forEach((val, key) => {
+        if (val.size) {
+            console.log(`plot[${key}] => farms: [${[...val].join('][')}]`);
+        }
+    });
+}
+
+function visualize() {
+    const arr = structuredClone(dataArr);
+    console.log('');
+    prev.forEach((farms, plot) => {
+        if (farms.size) {
+            const [y, x] = plot;
+            arr[y][x] = farms.size;
+            // console.log(`plot[${plot}] => farms: [${[...farms].join('][')}]`);
+        }
+    });
+    arr.forEach(line => {
+        console.log(line.join(''));
+    });
+}
+
+function visited() {
+    let counter = 0;
+    prev.forEach((val, key) => {
+        counter += val.size;
+        // if (val.size)
+    });
+    return counter;
 }
