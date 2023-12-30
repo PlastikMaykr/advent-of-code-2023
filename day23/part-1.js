@@ -3,6 +3,7 @@ const coordinates = {};
 const colors = {
     khaki: 'rgb(240, 230, 140)', // 'khaki',
     dark: 'rgb(189, 183, 107)', // 'darkkhaki',
+    green: 'rgb(60, 179, 113)', // 'MediumSeaGreen'
     grey: 'rgb(128, 128, 128)', // 'grey'
     white: 'rgb(255, 255, 255)', // 'white'
     red: 'rgb(255, 0, 0)', // 'red'
@@ -36,9 +37,9 @@ scaledCtx.imageSmoothingEnabled = false;
 ctx.fillStyle = colors.khaki;
 ctx.fillRect(0, 0, cols, rows);
 
-const rocksImg = ctx.getImageData(0, 0, cols, rows);
+const rawImg = ctx.getImageData(0, 0, cols, rows);
 
-const rocks = new Set();
+const forrest = new Set();
 const slopes = new Set();
 // const prev = new Set();
 // const next = new Set();
@@ -47,14 +48,14 @@ for (let y = 0; y < rows; y++) {
         const coords = [y, x];
         coordinates[encode(y, x)] = coords;
         if (input[y][x] === '#') {
-            rocks.add(coords);
+            forrest.add(coords);
         } else if (slopeChars.includes(input[y][x])) {
             slopes.add(coords);
         }
     }
 }
 // console.log({ prev, rocks });
-console.log({ rocksImg });
+console.log({ rawImg });
 
 let beginning, ending;
 for (let x = 0; x < cols; x++) {
@@ -62,16 +63,16 @@ for (let x = 0; x < cols; x++) {
     if (input[rows - 1][x] === '.') ending = keycode(rows - 1, x);
 }
 console.log({ beginning, ending });
-paint(beginning, colors.white, rocksImg);
-paint(ending, colors.white, rocksImg);
+paint(beginning, colors.white, rawImg);
+paint(ending, colors.white, rawImg);
 
 
 // paint rocks and slopes
-for (const rock of rocks) {
-    paint(rock, colors.grey, rocksImg);
+for (const tree of forrest) {
+    paint(tree, colors.green, rawImg);
 }
 for (const slope of slopes) {
-    paint(slope, colors.dark, rocksImg);
+    paint(slope, colors.dark, rawImg);
 }
 
 let image;
@@ -82,6 +83,10 @@ renderScaled();
 const data = new Data2D(input);
 const graph = new Graph(data);
 console.log(graph);
+
+scaledCanvas.addEventListener('click', () => {
+    traceHike(graph.longestPath.steps());
+}, { once: true });
 
 
 // let fps = 10;
@@ -97,6 +102,25 @@ console.log(graph);
 //     walk();
 // }, {once: true});
 
+/**
+ * @param {Coords[]} route 
+ */
+function traceHike(route) {
+    resetImg();
+
+    requestAnimationFrame(paintNext.bind(null, route, 0));
+
+}
+
+function paintNext(route, index) {
+    if (index < route.length) {
+        paint(route[index], colors.white);
+        renderScaled();
+
+        index++;
+        requestAnimationFrame(paintNext.bind(null, route, index));
+    }
+}
 
 function paint(coords, color = colors.red, imgData = image) {
     // console.log({coords});
@@ -111,9 +135,9 @@ function paint(coords, color = colors.red, imgData = image) {
 
 function resetImg() {
     image = new ImageData(
-        new Uint8ClampedArray(rocksImg.data),
-        rocksImg.width,
-        rocksImg.height
+        new Uint8ClampedArray(rawImg.data),
+        rawImg.width,
+        rawImg.height
     );
 }
 
@@ -128,17 +152,17 @@ function hiking() {
     let next = rerouting(hike);
     hike.next = next;
 
-// TODO: recursively build all possible routes graph
+    // TODO: recursively build all possible routes graph
 
     // while (Array.isArray(next)) {
 
-        for (const reroute of hike.next) {
-            next = rerouting(reroute);
-            // if (next) reroute.next
-            reroute.next = next.filter(d => Array.isArray(d));
-        }
+    for (const reroute of hike.next) {
+        next = rerouting(reroute);
+        // if (next) reroute.next
+        reroute.next = next.filter(d => Array.isArray(d));
+    }
     // }
-        
+
 }
 
 function rerouting(route) {
@@ -177,7 +201,7 @@ function walking(coord, vel) {
         const [yNext, xNext] = [y + yOff, x + xOff];
         const nextCoord = keycode(yNext, xNext);
         console.log({ dir, yNext, xNext, nextCoord });
-        if (!nextCoord || rocks.has(nextCoord)) continue;
+        if (!nextCoord || forrest.has(nextCoord)) continue;
 
         if (slopes.has(nextCoord) && // slopeChars.includes(input[yNext][xNext])
             slopeDir[input[yNext][xNext]] === opposite[dir]) {
@@ -195,7 +219,7 @@ function walking(coord, vel) {
 }
 
 function forking(coord, vel) {
-    
+
 }
 
 
@@ -209,7 +233,7 @@ function stepping() {
             const [yOff, xOff] = direction[dir];
             const coords = `${y + yOff} ${x + xOff}`;
             // console.log({ coords });
-            if (!rocks.has(coords)) {
+            if (!forrest.has(coords)) {
                 // console.log(coords, ' is a rock');
                 next.add(coords);
             }

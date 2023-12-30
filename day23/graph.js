@@ -12,7 +12,9 @@ class Node {
         this.graph = graph;
         this.coords = coords;
         this.dirs = dirs || graph.recon(coords);
+        /** @type {Array<Edge>} */
         this.enter = [];
+        /** @type {Array<Edge>} */
         this.exit = [];
     }
 }
@@ -39,16 +41,44 @@ class Edge {
     init() {
         this.start.enter.push(this);
         this.end.exit.push(this);
-        this.graph.adjacency.get(this.start).push(this);
+        this.graph.adjacency.get(this.start).set(this.end, this);
     }
 }
 
 /**
  * Full hikes from start to finish
  */
-class Path { // full hikes from start to finish
-    constructor() {
-        
+class Path {
+    /**
+     * @param {Graph} graph 
+     * @param {Node[]} path 
+     */
+    constructor(graph, path) {
+        this.graph = graph;
+        this.path = path;
+        /** @type {Edge[]} */
+        this.route = [];
+        this.init();
+    }
+    init() {
+        let length = 0;
+        for (let i = 1; i < this.path.length; i++) {
+            const edge = this.graph.getEdge(this.path[i - 1], this.path[i]);
+            if (!edge) console.error('No edge between nodes: ', [this.path[i - 1], this.path[i]])
+            this.route.push(edge);
+            length += edge.length;
+        }
+        this.length = length;
+    }
+    steps() {
+        const seq = [this.route[0].route[0]];
+        for (const route of this.route) {
+            for (let i = 1; i < route.route.length; i++) {
+                const coords = route.route[i];
+                seq.push(coords);
+            }
+        }
+        return seq;
     }
 }
 
@@ -57,6 +87,7 @@ class Path { // full hikes from start to finish
  * @property {Data2D} data Number of tiles exluding the last one.
  * @property {Node} nodes array.
  * @property {Edge[]} edges array.
+ * @property {Path[]} paths array.
  */
 class Graph {
     /**
@@ -66,9 +97,11 @@ class Graph {
     constructor(data) {
         this.data = data;
 
-        /** @type {Map<Node,Edge[]>} */
+        /** @type {Map<Node,Map<Node,Edge[]>>} */
         this.adjacency = new Map();
 
+        this.beginning;
+        this.ending;
         /** @type {Node[]} */
         this.nodes = [];
         /** @type {Map<Coords,Node>} */
@@ -80,6 +113,10 @@ class Graph {
         // /** @type {Map<Node,Edge>} */
         // this.edgeMap = new Map;
         this.buildEdges();
+
+        /** @type {Path[]} */
+        this.paths = [];
+        this.buildPaths();
     }
     /**
      * @param {Coords} coords 
@@ -89,13 +126,13 @@ class Graph {
         const node = new Node(this, coords, dirs);
         this.nodes.push(node);
         this.nodeMap.set(coords, node);
-        this.adjacency.set(node, []);
-        // return node;
+        this.adjacency.set(node, new Map());
+        return node;
     }
     buildNodes() {
         const data = this.data;
-        this.addNode(data.beginning);
-        this.addNode(data.ending);
+        this.beginning = this.addNode(data.beginning);
+        this.ending = this.addNode(data.ending);
 
         for (let y = 0; y < data.height; y++) {
             for (let x = 0; x < data.width; x++) {
@@ -115,9 +152,12 @@ class Graph {
     addEdge(route) {
         const start = this.nodeMap.get(route[0]);
         const end = this.nodeMap.get(route.at(-1));
-        if (!start || !end) console.log('route start or end is no a Node!', {start, end, route});
+        if (!start || !end) console.log('route start or end is no a Node!', { start, end, route });
         const edge = new Edge(this, start, end, route);
         this.edges.push(edge);
+    }
+    getEdge(start, end) {
+        return this.adjacency.get(start).get(end);
     }
     buildEdges() {
         for (let i = 0; i < this.nodes.length; i++) {
@@ -172,6 +212,44 @@ class Graph {
         }
         // if (!dirs.length) console.log('NO DIRS:' ,{coords, skip});
         return dirs;
+    }
+    addPath(path) {
+        const hike = new Path(this, path);
+        this.paths.push(hike);
+    }
+    buildPaths() {
+        /** @type {Array<Node[]>} */
+        const output = [];
+        this.dfs(this.beginning, [this.beginning], output);
+        console.log(output);
+
+        output.forEach(path => {
+            const redundant = path.some((node, i) => {
+                const dup = path.indexOf(node) !== i;
+                if (dup) console.log('we have a dup: ', path);
+                return dup;
+            });
+            if (!redundant) this.addPath(path);
+        });
+        // console.log(this.paths);
+        const hikes = this.paths.map(path => path.length);
+        const longest = hikes.reduce((acc, hike) => Math.max(acc, hike), 0);
+        console.log({ hikes, longest });
+
+        this.longestPath = this.paths.reduce((acc, path) => acc.length > path.length ? acc : path);
+    }
+    /**
+     * @param {Node} node 
+     * @param {Array<Node>} path 
+     * @param {Array<Node>} output 
+     * @returns {Array<Node>}
+     */
+    dfs(node, path, output) {
+        if (node === this.ending) output.push(path);
+
+        for (const route of node.enter) {
+            this.dfs(route.end, [...path, route.end], output);
+        }
     }
 }
 
@@ -242,6 +320,12 @@ class Data2D {
         const [yOff, xOff] = direction[dir];
         const [yNext, xNext] = [y + yOff, x + xOff];
         return this.tiles.get(this.coords(yNext, xNext));
+    }
+}
+
+class Painter { // TODO: refactor all image generation functions to methods
+    constructor() {
+        
     }
 }
 
