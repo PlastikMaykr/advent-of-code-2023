@@ -1,33 +1,11 @@
 const coordinates = {};
 
-const direction = { // [y, x]
-    up: [-1, 0],
-    right: [0, 1],
-    down: [1, 0],
-    left: [0, -1]
-};
-
-const opposite = {
-    up: 'down',
-    right: 'left',
-    down: 'up',
-    left: 'right'
-}
-
-const slopeDir = {
-    '^': 'up',
-    '>': 'right',
-    'v': 'down',
-    '<': 'left'
-};
-
-const slopeChars = [...Object.keys(slopeDir)]//['^', '>', 'v', '<',];
-
 const colors = {
     khaki: 'rgb(240, 230, 140)', // 'khaki',
     dark: 'rgb(189, 183, 107)', // 'darkkhaki',
     grey: 'rgb(128, 128, 128)', // 'grey'
     white: 'rgb(255, 255, 255)', // 'white'
+    red: 'rgb(255, 0, 0)', // 'red'
 };
 
 const root = document.querySelector('body');
@@ -100,9 +78,10 @@ let image;
 resetImg();
 renderScaled();
 
-// routing(beginning, 'down');
-const hike = hiking();
-console.log({ hike });
+
+const data = new Data2D(input);
+const graph = new Graph(data);
+console.log(graph);
 
 
 // let fps = 10;
@@ -119,7 +98,7 @@ console.log({ hike });
 // }, {once: true});
 
 
-function paint(coords, color, imgData = image) {
+function paint(coords, color = colors.red, imgData = image) {
     // console.log({coords});
     const [y, x] = coords//.split(' ').map(d => parseInt(d));
     const i = (y * cols + x) * 4;
